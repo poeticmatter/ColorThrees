@@ -1,106 +1,111 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CardData, Color, SHAPES, getInitialDeck, checkMerge, baseShapes } from './lib/gameLogic';
+import {
+  CellData, Color, DominoCard, DominoOrientation,
+  getDominoPlacement, getInitialDeck, checkMerge,
+} from './lib/gameLogic';
 import { Trophy, Skull } from 'lucide-react';
 
-const THEME = {
-  red: {
-    l1: { bg: 'bg-red-500/20', border: 'border-red-500', shadow: 'shadow-[0_0_15px_rgba(239,68,68,0.3)]', text: 'text-red-400', box: 'bg-red-500' },
-    l2: { bg: 'bg-red-500', border: 'border-white', shadow: 'shadow-[0_0_30px_rgba(239,68,68,0.6)]', textBox: 'text-red-600' },
-    ring: 'ring-red-500/50',
-  },
-  blue: {
-    l1: { bg: 'bg-blue-500/20', border: 'border-blue-500', shadow: 'shadow-[0_0_15px_rgba(59,130,246,0.3)]', text: 'text-blue-400', box: 'bg-blue-500' },
-    l2: { bg: 'bg-blue-500', border: 'border-white', shadow: 'shadow-[0_0_30px_rgba(59,130,246,0.6)]', textBox: 'text-blue-600' },
-    ring: 'ring-blue-500/50',
-  },
-  green: {
-    l1: { bg: 'bg-emerald-500/20', border: 'border-emerald-500', shadow: 'shadow-[0_0_15px_rgba(16,185,129,0.3)]', text: 'text-emerald-400', box: 'bg-emerald-500' },
-    l2: { bg: 'bg-emerald-500', border: 'border-white', shadow: 'shadow-[0_0_30px_rgba(16,185,129,0.6)]', textBox: 'text-emerald-600' },
-    ring: 'ring-emerald-500/50',
-  },
-  yellow: {
-    l1: { bg: 'bg-yellow-500/20', border: 'border-yellow-500', shadow: 'shadow-[0_0_15px_rgba(234,179,8,0.3)]', text: 'text-yellow-400', box: 'bg-yellow-500' },
-    l2: { bg: 'bg-yellow-500', border: 'border-white', shadow: 'shadow-[0_0_30px_rgba(234,179,8,0.6)]', textBox: 'text-yellow-600' },
-    ring: 'ring-yellow-500/50',
-  }
+const COLOR: Record<Color, {
+  bg: string; glow: string; l2glow: string;
+  text: string; border: string; ring: string; label: string;
+}> = {
+  red:    { bg: 'bg-red-500',     glow: 'shadow-[0_0_14px_rgba(239,68,68,0.55)]',   l2glow: 'shadow-[0_0_28px_rgba(239,68,68,0.85)]',   text: 'text-red-400',     border: 'border-red-500',     ring: 'ring-red-500',     label: 'RED' },
+  blue:   { bg: 'bg-blue-500',    glow: 'shadow-[0_0_14px_rgba(59,130,246,0.55)]',  l2glow: 'shadow-[0_0_28px_rgba(59,130,246,0.85)]',  text: 'text-blue-400',    border: 'border-blue-500',    ring: 'ring-blue-500',    label: 'BLUE' },
+  green:  { bg: 'bg-emerald-500', glow: 'shadow-[0_0_14px_rgba(16,185,129,0.55)]',  l2glow: 'shadow-[0_0_28px_rgba(16,185,129,0.85)]',  text: 'text-emerald-400', border: 'border-emerald-500', ring: 'ring-emerald-500', label: 'GREEN' },
+  yellow: { bg: 'bg-yellow-500',  glow: 'shadow-[0_0_14px_rgba(234,179,8,0.55)]',   l2glow: 'shadow-[0_0_28px_rgba(234,179,8,0.85)]',   text: 'text-yellow-400',  border: 'border-yellow-500',  ring: 'ring-yellow-500',  label: 'YELLOW' },
 };
 
-const BoardCard = ({ card, keyProp }: { card: CardData, keyProp?: string, key?: React.Key }) => {
-  const t = THEME[card.color];
-  const isL1 = card.level === 1;
-
-  if (isL1) {
+const CellDisplay = ({ cell }: { cell: CellData; key?: React.Key }) => {
+  const c = COLOR[cell.color];
+  if (cell.level === 1) {
     return (
       <motion.div
-        key={keyProp}
-        layoutId={card.id}
-        initial={{ scale: 0.8, opacity: 0 }}
+        key={cell.id}
+        layoutId={cell.id}
+        initial={{ scale: 0.4, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0, opacity: 0 }}
-        className={`absolute inset-0 w-full h-full rounded-2xl ${t.l1.bg} border-2 ${t.l1.border} flex flex-col items-center justify-center gap-1 ${t.l1.shadow}`}
-      >
-        <span className={`text-[10px] font-bold ${t.l1.text} uppercase`}>Lvl 1</span>
-        <div className={`w-8 h-8 rounded ${t.l1.box}`}></div>
-      </motion.div>
+        className={`absolute inset-2 rounded-xl ${c.bg} ${c.glow}`}
+      />
     );
   }
-
   return (
     <motion.div
-      key={keyProp}
-      layoutId={card.id}
-      initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
-      animate={{ scale: 1, opacity: 1, rotate: 0 }}
+      key={cell.id}
+      layoutId={cell.id}
+      initial={{ scale: 0.4, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0, opacity: 0 }}
-      className={`absolute w-[115%] h-[115%] -left-[7.5%] -top-[7.5%] z-10 rounded-3xl ${t.l2.bg} border-4 ${t.l2.border} ${t.l2.shadow} flex flex-col items-center justify-center gap-1 overflow-hidden`}
+      className={`absolute inset-0.5 rounded-xl ${c.bg} ${c.l2glow} flex items-center justify-center overflow-hidden`}
     >
-      <div className="absolute inset-0 bg-gradient-to-tr from-black/20 to-white/20"></div>
-      <span className="text-[10px] font-bold text-white uppercase relative z-10">Level 2</span>
-      <div className={`w-10 h-10 rounded-lg bg-white shadow-inner flex items-center justify-center relative z-10 ${t.l2.textBox} font-bold text-xl`}>★</div>
+      <div className="absolute inset-0 bg-gradient-to-tr from-black/10 to-white/30 rounded-xl" />
+      <span className="relative z-10 text-white font-bold text-2xl drop-shadow">★</span>
     </motion.div>
   );
 };
 
-const HandCard = ({ card, isSelected, onClick, keyProp }: { card: CardData, isSelected?: boolean, onClick?: () => void, keyProp?: string, key?: React.Key }) => {
-  const t = THEME[card.color];
-  const isL1 = card.level === 1;
-
+const PreviewCell = ({ color }: { color: Color }) => {
+  const c = COLOR[color];
   return (
-    <motion.div
-      key={keyProp}
-      layoutId={card.id}
-      onClick={onClick}
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1, y: isSelected ? -8 : 0 }}
-      exit={{ scale: 0, opacity: 0 }}
-      className={`relative w-24 h-32 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer group ${isSelected ? `ring-4 ${t.ring}` : ''} shrink-0 overflow-hidden ${isL1 ? 'bg-slate-800 border border-slate-600' : `${t.l2.bg} border-2 ${t.l2.border} shadow-lg`}`}
-    >
-      {isL1 ? (
-        <>
-          <span className="text-[8px] text-slate-500 uppercase mb-2">Level 1</span>
-          <div className={`w-12 h-12 ${t.l1.box} rounded shadow-lg group-hover:shadow-[0_0_10px_rgba(255,255,255,0.2)]`}></div>
-        </>
-      ) : (
-        <>
-          <div className="absolute inset-0 bg-gradient-to-tr from-black/30 to-white/20 pointer-events-none"></div>
-          <span className="text-[10px] font-bold text-white uppercase relative z-10 mb-2">Level 2</span>
-          <div className={`w-12 h-12 rounded-lg bg-white shadow-inner flex items-center justify-center relative z-10 ${t.l2.textBox} font-bold text-2xl`}>★</div>
-        </>
-      )}
-    </motion.div>
+    <div className={`absolute inset-2 rounded-xl ${c.bg} opacity-35 border-2 ${c.border} pointer-events-none`} />
+  );
+};
+
+const HandDomino = ({
+  card, isSelected, orientation, flipped, onClick,
+}: {
+  card: DominoCard; isSelected: boolean; orientation: DominoOrientation; flipped: boolean; onClick: () => void; key?: React.Key;
+}) => {
+  const colorA = flipped ? card.colorB : card.colorA;
+  const colorB = flipped ? card.colorA : card.colorB;
+  const cA = COLOR[colorA];
+  const cB = COLOR[colorB];
+  const isHorizontal = orientation === 'H';
+  return (
+    <div className="w-20 h-20 flex items-center justify-center shrink-0">
+      <motion.button
+        layoutId={card.id}
+        onClick={onClick}
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1, y: isSelected ? -10 : 0 }}
+        exit={{ scale: 0, opacity: 0 }}
+        className={`relative rounded-xl overflow-hidden cursor-pointer flex border-2 transition-shadow ${
+          isHorizontal ? 'w-20 h-9 flex-row' : 'w-9 h-20 flex-col'
+        } ${
+          isSelected
+            ? 'border-white shadow-[0_0_0_3px_rgba(255,255,255,0.25)]'
+            : 'border-slate-700 hover:border-slate-500'
+        }`}
+      >
+        <div className={`flex-1 ${cA.bg}`} />
+        <div className={isHorizontal ? 'w-0.5 bg-black/50 shrink-0' : 'h-0.5 bg-black/50 shrink-0'} />
+        <div className={`flex-1 ${cB.bg}`} />
+      </motion.button>
+    </div>
   );
 };
 
 export default function App() {
-  const [deck, setDeck] = useState<CardData[]>([]);
-  const [hand, setHand] = useState<CardData[]>([]);
-  const [board, setBoard] = useState<(CardData | null)[]>(Array(9).fill(null));
+  const [deck, setDeck] = useState<DominoCard[]>([]);
+  const [hand, setHand] = useState<DominoCard[]>([]);
+  const [board, setBoard] = useState<(CellData | null)[]>(Array(9).fill(null));
   const [score, setScore] = useState<Record<Color, number>>({ red: 0, blue: 0, green: 0, yellow: 0 });
   const [selectedCardIdx, setSelectedCardIdx] = useState<number | null>(null);
+  const [orientation, setOrientation] = useState<DominoOrientation>('H');
+  const [flipped, setFlipped] = useState(false);
+  const [hoverCell, setHoverCell] = useState<number | null>(null);
+
+  useEffect(() => { startNewGame(); }, []);
 
   useEffect(() => {
-    startNewGame();
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'r' || e.key === 'R') setOrientation(o => o === 'H' ? 'V' : 'H');
+      if (e.key === 'f' || e.key === 'F') setFlipped(f => !f);
+      if (e.key === 'Escape') setSelectedCardIdx(null);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
   }, []);
 
   const startNewGame = () => {
@@ -111,30 +116,52 @@ export default function App() {
     setBoard(Array(9).fill(null));
     setScore({ red: 0, blue: 0, green: 0, yellow: 0 });
     setSelectedCardIdx(null);
+    setOrientation('H');
+    setFlipped(false);
+    setHoverCell(null);
   };
 
-  const playCard = (boardIdx: number) => {
-    if (selectedCardIdx === null) return;
-
+  const getPreviewColor = (cellIdx: number): Color | null => {
+    if (selectedCardIdx === null || hoverCell === null) return null;
+    const placement = getDominoPlacement(hoverCell, orientation);
+    if (!placement) return null;
+    const [posA, posB] = placement;
     const card = hand[selectedCardIdx];
-    const newHand = [...hand];
-    newHand.splice(selectedCardIdx, 1);
-    
-    const newDeck = [...deck];
-    if (newDeck.length > 0) {
-      newHand.push(newDeck.pop()!);
-    }
+    const colorA = flipped ? card.colorB : card.colorA;
+    const colorB = flipped ? card.colorA : card.colorB;
+    if (cellIdx === posA) return colorA;
+    if (cellIdx === posB) return colorB;
+    return null;
+  };
+
+  const playDomino = (anchor: number) => {
+    if (selectedCardIdx === null) return;
+    const placement = getDominoPlacement(anchor, orientation);
+    if (!placement) return;
+    const [posA, posB] = placement;
+    const card = hand[selectedCardIdx];
+    const colorA = flipped ? card.colorB : card.colorA;
+    const colorB = flipped ? card.colorA : card.colorB;
+    const ts = Date.now();
 
     const newBoard = [...board];
-    newBoard[boardIdx] = card;
+    newBoard[posA] = { id: `cell-${posA}-${ts}`,   color: colorA, level: 1 };
+    newBoard[posB] = { id: `cell-${posB}-${ts}-b`, color: colorB, level: 1 };
 
-    const { board: mergedBoard, score: mergedScore, deck: mergedDeck } = checkMerge(newBoard, boardIdx, score, newDeck);
+    const newHand = [...hand];
+    newHand.splice(selectedCardIdx, 1);
+    const newDeck = [...deck];
+    if (newDeck.length > 0) newHand.push(newDeck.pop()!);
 
-    setBoard(mergedBoard);
-    setScore(mergedScore);
+    let { board: b, score: s } = checkMerge(newBoard, posA, score);
+    ({ board: b, score: s } = checkMerge(b, posB, s));
+
+    setBoard(b);
+    setScore(s);
     setHand(newHand);
-    setDeck(mergedDeck);
+    setDeck(newDeck);
     setSelectedCardIdx(null);
+    setHoverCell(null);
   };
 
   const isWin = (Object.values(score) as number[]).every(s => s >= 1);
@@ -142,95 +169,124 @@ export default function App() {
   const isLoss = !isWin && !canPlay;
   const gameActive = !isWin && !isLoss;
 
+  const dominoPreviewLabel = selectedCardIdx !== null ? (
+    `${orientation === 'H' ? '→' : '↓'}  ${flipped ? 'flipped' : 'normal'}`
+  ) : null;
+
   return (
     <div className="w-full h-screen bg-slate-950 text-slate-100 flex flex-col p-4 sm:p-10 font-sans overflow-hidden select-none relative max-w-[1200px] mx-auto min-h-[768px]">
-      
+
       <header className="flex justify-between items-end border-b border-slate-800 pb-6 mb-10 shrink-0">
         <div className="flex flex-col">
-          <div>
-            <span className="text-[10px] sm:text-xs font-bold tracking-[0.2em] text-blue-400 uppercase">Experimental Phase 01</span>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">QUARTET<span className="text-blue-500">MERGE</span></h1>
-          </div>
+          <span className="text-[10px] sm:text-xs font-bold tracking-[0.2em] text-blue-400 uppercase">Experimental Phase 02</span>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">QUARTET<span className="text-blue-500">MERGE</span></h1>
         </div>
         <div className="flex gap-4 sm:gap-8 text-right">
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase tracking-widest text-slate-500">Deck Integrity</span>
-            <span className="text-xl sm:text-2xl font-mono text-emerald-400">{deck.length.toString().padStart(2, '0')} <span className="text-slate-600 font-sans text-sm">/ 80</span></span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">Deck</span>
+            <span className="text-xl sm:text-2xl font-mono text-emerald-400">{deck.length.toString().padStart(2, '0')} <span className="text-slate-600 font-sans text-sm">/ 36</span></span>
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase tracking-widest text-slate-500">Active Hand</span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-500">Hand</span>
             <span className="text-xl sm:text-2xl font-mono">{hand.length.toString().padStart(2, '0')} <span className="text-slate-600 font-sans text-sm">/ 05</span></span>
           </div>
         </div>
       </header>
 
       <main className="flex flex-col lg:flex-row flex-1 gap-6 lg:gap-12 overflow-hidden h-full">
+
         {/* Left Sidebar */}
-        <section className="hidden sm:flex w-full lg:w-64 flex-row lg:flex-col gap-6 shrink-0 h-[full] overflow-y-auto pr-2 custom-scrollbar">
+        <section className="hidden sm:flex w-full lg:w-64 flex-row lg:flex-col gap-6 shrink-0 overflow-y-auto pr-2">
           <div className="p-5 bg-slate-900/50 rounded-2xl border border-slate-800/50 flex-1 lg:flex-none">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Color Patterns</h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Match Lines</h3>
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:space-y-4 lg:gap-0">
-              {/* Pattern L */}
-              <div className="flex items-center gap-4">
-                <div className="grid grid-cols-3 gap-0.5 w-12 shrink-0">
-                  {Array.from({length: 9}).map((_, i) => (
-                    <div key={i} className={`w-3 h-3 ${[0, 3, 6, 7].includes(i) ? 'bg-red-500' : 'bg-slate-800'}`}></div>
-                  ))}
+              {([
+                { label: 'Row',       cells: [3,4,5] },
+                { label: 'Column',    cells: [1,4,7] },
+                { label: 'Diagonal',  cells: [0,4,8] },
+                { label: 'Anti-diag', cells: [2,4,6] },
+              ] as const).map(({ label, cells }) => (
+                <div key={label} className="flex items-center gap-4">
+                  <div className="grid grid-cols-3 gap-0.5 w-12 shrink-0">
+                    {Array.from({length: 9}).map((_, i) => (
+                      <div key={i} className={`w-3 h-3 ${cells.includes(i as never) ? 'bg-slate-400' : 'bg-slate-800'}`} />
+                    ))}
+                  </div>
+                  <span className="text-sm font-semibold text-slate-400">{label}</span>
                 </div>
-                <span className="text-sm font-semibold text-slate-400">Pattern L</span>
-              </div>
-              {/* Pattern O */}
-              <div className="flex items-center gap-4">
-                <div className="grid grid-cols-3 gap-0.5 w-12 shrink-0">
-                  {Array.from({length: 9}).map((_, i) => (
-                    <div key={i} className={`w-3 h-3 ${[0, 1, 3, 4].includes(i) ? 'bg-blue-500' : 'bg-slate-800'}`}></div>
-                  ))}
-                </div>
-                <span className="text-sm font-semibold text-slate-400">Pattern O</span>
-              </div>
-              {/* Pattern T */}
-              <div className="flex items-center gap-4">
-                <div className="grid grid-cols-3 gap-0.5 w-12 shrink-0">
-                  {Array.from({length: 9}).map((_, i) => (
-                    <div key={i} className={`w-3 h-3 ${[0, 1, 2, 4].includes(i) ? 'bg-yellow-500' : 'bg-slate-800'}`}></div>
-                  ))}
-                </div>
-                <span className="text-sm font-semibold text-slate-400">Pattern T</span>
-              </div>
-              {/* Pattern S */}
-              <div className="flex items-center gap-4">
-                <div className="grid grid-cols-3 gap-0.5 w-12 shrink-0">
-                  {Array.from({length: 9}).map((_, i) => (
-                    <div key={i} className={`w-3 h-3 ${[1, 2, 3, 4].includes(i) ? 'bg-emerald-500' : 'bg-slate-800'}`}></div>
-                  ))}
-                </div>
-                <span className="text-sm font-semibold text-slate-400">Pattern S</span>
-              </div>
+              ))}
             </div>
           </div>
           <div className="flex-1 lg:flex-none p-5 bg-blue-900/10 rounded-2xl border border-blue-500/10 flex flex-col justify-center items-center text-center">
             <div className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-500/20 rounded-full flex items-center justify-center mb-2 lg:mb-3">
               <span className="text-blue-400 text-lg lg:text-xl font-bold">!</span>
             </div>
-            <p className="text-[10px] lg:text-xs text-slate-400 leading-relaxed uppercase tracking-wider px-2">Match Level 2 sets to score Level 3 components.</p>
+            <p className="text-[10px] lg:text-xs text-slate-400 leading-relaxed uppercase tracking-wider px-2">3 in a line → 2 vanish, 1 upgrades to ★. Three ★ in a line → score!</p>
+            <p className="text-[9px] lg:text-[10px] text-slate-600 mt-2 uppercase tracking-wider">[R] rotate · [F] flip</p>
           </div>
         </section>
 
         {/* Board */}
-        <section className="flex-1 flex justify-center items-center min-h-[400px]">
+        <section className="flex-1 flex flex-col justify-center items-center gap-4 min-h-[400px]">
           <div className="grid grid-cols-3 gap-3 sm:gap-4 p-4 sm:p-5 bg-slate-900 rounded-[2rem] sm:rounded-[2.5rem] border-4 border-slate-800 shadow-2xl shrink-0">
-            {board.map((card, i) => (
-              <div 
-                key={`cell-${i}`} 
-                onClick={() => gameActive && playCard(i)}
-                className={`w-24 h-24 sm:w-32 sm:h-32 rounded-xl sm:rounded-2xl bg-slate-800/50 border border-slate-700 relative ${selectedCardIdx !== null ? 'cursor-pointer hover:bg-slate-800 hover:border-slate-500 hover:ring-2 hover:ring-white/20' : ''}`}
-              >
-                <AnimatePresence mode="popLayout">
-                  {card && <BoardCard key={card.id} keyProp={`bc-${card.id}`} card={card} />}
-                </AnimatePresence>
-              </div>
-            ))}
+            {board.map((cell, i) => {
+              const previewColor = getPreviewColor(i);
+              const placement = selectedCardIdx !== null && hoverCell !== null
+                ? getDominoPlacement(hoverCell, orientation)
+                : null;
+              const isInvalidPreview = selectedCardIdx !== null && hoverCell === i
+                && getDominoPlacement(i, orientation) === null;
+
+              return (
+                <div
+                  key={`cell-${i}`}
+                  onClick={() => gameActive && playDomino(i)}
+                  onMouseEnter={() => setHoverCell(i)}
+                  onMouseLeave={() => setHoverCell(null)}
+                  className={`w-24 h-24 sm:w-28 sm:h-28 rounded-xl sm:rounded-2xl bg-slate-800/50 border border-slate-700 relative transition-colors ${
+                    selectedCardIdx !== null && !isInvalidPreview
+                      ? 'cursor-pointer'
+                      : selectedCardIdx !== null
+                      ? 'cursor-not-allowed'
+                      : ''
+                  } ${
+                    placement && (placement[0] === i || placement[1] === i)
+                      ? 'border-slate-500 bg-slate-800/80'
+                      : ''
+                  }`}
+                >
+                  <AnimatePresence mode="popLayout">
+                    {cell && <CellDisplay key={cell.id} cell={cell} />}
+                  </AnimatePresence>
+                  {previewColor && <PreviewCell color={previewColor} />}
+                </div>
+              );
+            })}
           </div>
+
+          {/* Rotation controls */}
+          {selectedCardIdx !== null && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center gap-3"
+            >
+              <button
+                onClick={() => setOrientation(o => o === 'H' ? 'V' : 'H')}
+                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors"
+              >
+                {orientation === 'H' ? '→ Rotate ↓' : '↓ Rotate →'}
+              </button>
+              <button
+                onClick={() => setFlipped(f => !f)}
+                className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors"
+              >
+                {flipped ? '⇄ Flipped' : '⇄ Flip'}
+              </button>
+              <span className="text-[10px] text-slate-600 uppercase">[R] [F]</span>
+            </motion.div>
+          )}
         </section>
 
         {/* Right Sidebar */}
@@ -238,65 +294,44 @@ export default function App() {
           <div className="p-4 sm:p-6 bg-slate-900/50 rounded-2xl border border-slate-800/50 flex flex-col h-full lg:h-auto lg:flex-1">
             <h3 className="hidden sm:block text-xs font-bold text-slate-400 uppercase tracking-widest mb-6">Synthesis Progress</h3>
             <div className="flex-1 grid grid-cols-2 lg:grid-cols-1 gap-4 lg:space-y-8 lg:gap-0">
-              
-              <div className="flex flex-col gap-2 sm:gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs sm:text-sm text-red-500 font-bold tracking-tight">RED CORE</span>
-                  {score.red >= 1 ? <span className="text-[9px] sm:text-[10px] text-red-500 font-bold uppercase tracking-tighter">Level 3 OK</span> : <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase">Pending</span>}
-                </div>
-                <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                  <div className={`h-full bg-red-500 ${score.red >= 1 ? 'w-full shadow-[0_0_8px_#ef4444]' : 'w-0'}`}></div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 sm:gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs sm:text-sm text-blue-500 font-bold tracking-tight">BLUE CORE</span>
-                  {score.blue >= 1 ? <span className="text-[9px] sm:text-[10px] text-blue-500 font-bold uppercase tracking-tighter">Level 3 OK</span> : <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase">Pending</span>}
-                </div>
-                <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                  <div className={`h-full bg-blue-500 ${score.blue >= 1 ? 'w-full shadow-[0_0_8px_#3b82f6]' : 'w-0'}`}></div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 sm:gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs sm:text-sm text-yellow-500 font-bold tracking-tight">YELLOW CORE</span>
-                  {score.yellow >= 1 ? <span className="text-[9px] sm:text-[10px] text-yellow-500 font-bold uppercase tracking-tighter">Level 3 OK</span> : <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase">Pending</span>}
-                </div>
-                <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                  <div className={`h-full bg-yellow-500 ${score.yellow >= 1 ? 'w-full shadow-[0_0_8px_#eab308]' : 'w-0'}`}></div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2 sm:gap-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs sm:text-sm text-emerald-500 font-bold tracking-tight">GREEN CORE</span>
-                  {score.green >= 1 ? <span className="text-[9px] sm:text-[10px] text-emerald-500 font-bold uppercase tracking-tighter">Level 3 OK</span> : <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase">Pending</span>}
-                </div>
-                <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
-                  <div className={`h-full bg-emerald-500 ${score.green >= 1 ? 'w-full shadow-[0_0_8px_#10b981]' : 'w-0'}`}></div>
-                </div>
-              </div>
-
+              {(['red', 'blue', 'yellow', 'green'] as Color[]).map(color => {
+                const c = COLOR[color];
+                const scored = score[color] >= 1;
+                return (
+                  <div key={color} className="flex flex-col gap-2 sm:gap-3">
+                    <div className="flex justify-between items-center">
+                      <span className={`text-xs sm:text-sm ${c.text} font-bold tracking-tight`}>{c.label} CORE</span>
+                      {scored
+                        ? <span className={`text-[9px] sm:text-[10px] ${c.text} font-bold uppercase tracking-tighter`}>Scored!</span>
+                        : <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase">Pending</span>
+                      }
+                    </div>
+                    <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+                      <div className={`h-full ${c.bg} ${scored ? 'w-full ' + c.glow : 'w-0'}`} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="mt-4 pt-4 sm:mt-auto sm:pt-6 border-t border-slate-800 flex justify-between sm:block">
-              <div className="text-center sm:text-left mx-auto sm:mx-0 w-full flex flex-col items-center">
-                <div className="text-[10px] text-slate-500 uppercase mb-1 tracking-tighter">Multiplier Score</div>
-                <div className="text-2xl sm:text-3xl font-mono font-bold">{(score.red * 1 + score.blue * 1 + score.green * 1 + score.yellow * 1) * 3112}</div>
+            <div className="mt-4 pt-4 sm:mt-auto sm:pt-6 border-t border-slate-800">
+              <div className="text-center flex flex-col items-center">
+                <div className="text-[10px] text-slate-500 uppercase mb-1 tracking-tighter">Score</div>
+                <div className="text-2xl sm:text-3xl font-mono font-bold">
+                  {(score.red + score.blue + score.green + score.yellow) * 3112}
+                </div>
               </div>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="mt-4 sm:mt-10 flex justify-center gap-2 sm:gap-4 py-4 sm:py-6 border-t border-slate-800 shrink-0 overflow-x-auto custom-scrollbar">
+      {/* Hand */}
+      <footer className="mt-4 sm:mt-10 flex justify-center gap-2 sm:gap-3 py-4 sm:py-6 border-t border-slate-800 shrink-0 overflow-x-auto">
         <AnimatePresence>
           {hand.map((card, idx) => (
-            <HandCard 
-              keyProp={`hc-${card.id}`}
+            <HandDomino
               key={card.id}
-              card={card} 
+              card={card}
               isSelected={selectedCardIdx === idx}
               onClick={() => gameActive && setSelectedCardIdx(selectedCardIdx === idx ? null : idx)}
             />
@@ -314,7 +349,7 @@ export default function App() {
           </motion.div>
         </div>
       )}
-      
+
       {isLoss && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-sm">
           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center p-8 bg-slate-900 border border-slate-800 shadow-2xl rounded-3xl">
@@ -328,4 +363,3 @@ export default function App() {
     </div>
   );
 }
-
